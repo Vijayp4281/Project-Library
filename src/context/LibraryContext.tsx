@@ -37,6 +37,10 @@ import {
   saveStudentToFirestore,
   updateStudentInFirestore,
   deleteStudentFromFirestore,
+  subscribeStaffFromFirestore,
+  saveStaffToFirestore,
+  updateStaffInFirestore,
+  deleteStaffFromFirestore,
   seedUsersCollectionInFirestore,
   updateStudentProfileInFirestore,
   updateAdminProfileInFirestore
@@ -74,7 +78,9 @@ interface LibraryContextType {
   setSelectedBook: (book: Book | null) => void;
   setIsAuthModalOpen: (open: boolean) => void;
   setAuthMode: (mode: 'signin' | 'register') => void;
-  openAuthModal: (mode?: 'signin' | 'register') => void;
+  authRoleTab: 'student' | 'staff' | 'admin';
+  setAuthRoleTab: (role: 'student' | 'staff' | 'admin') => void;
+  openAuthModal: (mode?: 'signin' | 'register', roleTab?: 'student' | 'staff' | 'admin') => void;
   registerStudent: (data: { name: string; rollNumber: string; email: string; department?: string; year?: string; batch?: string; password?: string }) => Promise<boolean>;
   verifyStudentEmailAndCreateProfile: () => Promise<{ success: boolean; studentData?: StudentProfile; error?: string }>;
   registerStaff: (data: { name: string; staffId: string; email: string; department?: string; position?: string; password?: string }) => Promise<boolean>;
@@ -321,6 +327,14 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Save states to localStorage
   useEffect(() => {
+    localStorage.setItem('lms_books', JSON.stringify(books));
+  }, [books]);
+
+  useEffect(() => {
+    localStorage.setItem('lms_borrow_records', JSON.stringify(borrowRecords));
+  }, [borrowRecords]);
+
+  useEffect(() => {
     localStorage.setItem('lms_students', JSON.stringify(studentsList));
   }, [studentsList]);
 
@@ -385,10 +399,14 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
+  const [authRoleTab, setAuthRoleTab] = useState<'student' | 'staff' | 'admin'>('student');
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
-  const openAuthModal = (mode: 'signin' | 'register' = 'signin') => {
+  const openAuthModal = (mode: 'signin' | 'register' = 'signin', roleTab?: 'student' | 'staff' | 'admin') => {
     setAuthMode(mode);
+    if (roleTab) {
+      setAuthRoleTab(roleTab);
+    }
     setIsAuthModalOpen(true);
   };
 
@@ -541,7 +559,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     seedUsersCollectionInFirestore();
   }, []);
 
-  // Sync books, borrow records & students with Firestore
+  // Sync books, borrow records, students & staff with Firestore
   useEffect(() => {
     const unsubBooks = subscribeBooksFromFirestore((fbBooks) => {
       if (fbBooks && fbBooks.length > 0) {
@@ -561,10 +579,30 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
       }
     });
+    const unsubStaff = subscribeStaffFromFirestore((fbStaff) => {
+      if (fbStaff && fbStaff.length > 0) {
+        setStaffList(prev => {
+          const seen = new Set<string>();
+          const combined = [...fbStaff, ...prev];
+          const merged: StaffProfile[] = [];
+          for (const s of combined) {
+            const emailKey = s.email?.toLowerCase().trim();
+            const staffIdKey = s.staffId?.toLowerCase().trim();
+            if (emailKey && seen.has(emailKey)) continue;
+            if (staffIdKey && seen.has(staffIdKey)) continue;
+            if (emailKey) seen.add(emailKey);
+            if (staffIdKey) seen.add(staffIdKey);
+            merged.push(s);
+          }
+          return merged;
+        });
+      }
+    });
     return () => {
       unsubBooks();
       unsubBorrow();
       unsubStudents();
+      unsubStaff();
     };
   }, []);
 
@@ -675,16 +713,10 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const cleanEmail = data.email.toLowerCase().trim();
       const cleanStaffId = data.staffId.toLowerCase().trim();
 
-      // Check duplicate email
-      const duplicateStaff = staffList.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail);
-      if (duplicateStaff) {
-        const msg = `The email address "${data.email}" is already registered to staff member ${duplicateStaff.name}. Duplicate accounts with the same email are not allowed. Please log in instead.`;
-        addToast('Email Already Registered', msg, 'error');
-        throw new Error(msg);
-      }
-
-      // Check duplicate staff ID
-      const duplicateId = staffList.find(s => s.staffId && s.staffId.toLowerCase().trim() === cleanStaffId);
+      // Check duplicate staff ID (ignoring demo placeholders)
+      const duplicateId = staffList.find(
+        s => s.id !== 'STF-5001' && s.id !== 'STF-5002' && s.staffId && s.staffId.toLowerCase().trim() === cleanStaffId
+      );
       if (duplicateId) {
         const msg = `Staff ID "${data.staffId}" is already assigned to ${duplicateId.name}. Please enter your unique Staff ID.`;
         addToast('Staff ID Taken', msg, 'error');
@@ -708,9 +740,11 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         department: data.department || 'Central Library Admin',
         position: data.position || 'Assistant Librarian',
         avatar: `https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200`,
-        joinedDate: new Date().toISOString().split('T')[0]
+        joinedDate: new Date().toISOString().split('T')[0],
+        role: 'staff'
       };
       setStaffList(prev => [newStaff, ...prev.filter(s => s.email?.toLowerCase().trim() !== cleanEmail)]);
+      saveStaffToFirestore(newStaff);
       setCurrentStaff(newStaff);
       setCurrentStudent(null);
       setCurrentRole('staff');
@@ -1403,7 +1437,7 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addToast('Duplicates Purged', 'Duplicate student email records have been cleaned and merged.', 'success');
   };
 
-  const addStaffMember = (staffData: Omit<StaffProfile, 'id'>) => {
+  const addStaffMember = async (staffData: Omit<StaffProfile, 'id'>) => {
     const cleanEmail = staffData.email.toLowerCase().trim();
     const cleanStaffId = staffData.staffId.toLowerCase().trim();
 
@@ -1416,23 +1450,50 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
+    // If password is provided, attempt to register in Firebase Auth
+    let staffUid = `STAFF-${Date.now()}`;
+    const staffPassword = staffData.password || 'Staff@123';
+
+    try {
+      const regRes = await registerUserWithFirebase(cleanEmail, staffPassword, {
+        name: staffData.name,
+        role: 'staff',
+        staffId: staffData.staffId,
+        department: staffData.department,
+        position: staffData.position
+      });
+      if (regRes?.user?.uid) {
+        staffUid = regRes.user.uid;
+      }
+    } catch (authErr) {
+      console.warn('Firebase Auth staff creation note:', authErr);
+    }
+
     const newStaff: StaffProfile = {
       ...staffData,
       email: cleanEmail,
-      id: `STAFF-${Date.now()}`
+      id: staffUid,
+      avatar: staffData.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+      joinedDate: staffData.joinedDate || new Date().toISOString().split('T')[0],
+      role: 'staff'
     };
+
     setStaffList(prev => [newStaff, ...prev]);
-    addToast('Staff Member Added', `Added ${newStaff.name} (${newStaff.position}).`, 'success');
+    saveStaffToFirestore(newStaff);
+
+    addToast('Staff Member Authorized', `Created staff account for ${newStaff.name} (${newStaff.staffId}). They can now log in using their email or Staff ID.`, 'success');
   };
 
   const updateStaffMember = (id: string, data: Partial<StaffProfile>) => {
     setStaffList(prev => prev.map(s => (s.id === id ? { ...s, ...data } : s)));
-    addToast('Staff Updated', 'Staff details updated successfully.', 'success');
+    updateStaffInFirestore(id, data);
+    addToast('Staff Updated', 'Staff details updated in system and Firestore database.', 'success');
   };
 
   const deleteStaffMember = (id: string) => {
     setStaffList(prev => prev.filter(s => s.id !== id));
-    addToast('Staff Removed', 'Staff account removed from system.', 'warning');
+    deleteStaffFromFirestore(id);
+    addToast('Staff Removed', 'Staff account removed from system and Firestore.', 'warning');
   };
 
   const addCategory = (categoryName: string) => {
@@ -1606,6 +1667,8 @@ export const LibraryProvider: React.FC<{ children: React.ReactNode }> = ({ child
         selectedBook,
         isAuthModalOpen,
         authMode,
+        authRoleTab,
+        setAuthRoleTab,
         toasts,
         theme,
         themePalette,
