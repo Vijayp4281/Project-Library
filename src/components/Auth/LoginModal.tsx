@@ -33,6 +33,8 @@ export const LoginModal: React.FC = () => {
     setIsAuthModalOpen,
     authMode,
     setAuthMode,
+    authRoleTab,
+    setAuthRoleTab,
     setRole,
     setActiveTab,
     registerStudent,
@@ -49,12 +51,18 @@ export const LoginModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Automatically reset to student when in register mode so no staff/admin options appear
+  // Sync role tab with context or default
   useEffect(() => {
-    if (authMode === 'register') {
-      setRoleTab('student');
+    if (authRoleTab) {
+      setRoleTab(authRoleTab);
     }
-  }, [authMode]);
+  }, [authRoleTab, isAuthModalOpen]);
+
+  useEffect(() => {
+    if (authMode === 'register' && roleTab === 'admin') {
+      setRoleTab('staff');
+    }
+  }, [authMode, roleTab]);
 
   // Password visibility states
   const [showSignInPassword, setShowSignInPassword] = useState(false);
@@ -285,19 +293,10 @@ export const LoginModal: React.FC = () => {
       return;
     }
 
-    // Check duplicate staff email
-    const duplicateEmail = staffList.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail);
-    if (duplicateEmail) {
-      addToast(
-        'Email Already Registered',
-        `The email "${cleanEmail}" is already registered to staff member ${duplicateEmail.name}. Please sign in to access the Staff Dashboard.`,
-        'error'
-      );
-      return;
-    }
-
-    // Check duplicate staff ID
-    const duplicateStaffId = staffList.find(s => s.staffId && s.staffId.toLowerCase().trim() === cleanStaffId);
+    // Check duplicate staff ID (ignoring demo staff placeholders)
+    const duplicateStaffId = staffList.find(
+      s => s.id !== 'STF-5001' && s.id !== 'STF-5002' && s.staffId && s.staffId.toLowerCase().trim() === cleanStaffId
+    );
     if (duplicateStaffId) {
       addToast(
         'Staff ID Already Taken',
@@ -579,22 +578,31 @@ export const LoginModal: React.FC = () => {
               {/* Form Top Title */}
               <div className="mb-6">
                 <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-                  {authMode === 'signin' ? 'Sign In' : 'Create Student Account'}
+                  {authMode === 'signin'
+                    ? 'Sign In'
+                    : roleTab === 'staff'
+                    ? 'Create Staff Account'
+                    : 'Create Student Account'}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
                   {authMode === 'signin'
                     ? 'Choose your account type and sign in to access your portal'
+                    : roleTab === 'staff'
+                    ? 'Register library archivist and staff credentials to manage circulation and catalog'
                     : 'Register your details with your valid email to create an official student account'}
                 </p>
               </div>
 
-              {/* ROLE SELECTOR: Only visible in Sign In mode. Removed Archivist & Admin Panel options from Register page */}
-              {authMode === 'signin' && (
+              {/* ROLE SELECTOR: Sign In (3 options) vs Register (Student & Staff) */}
+              {authMode === 'signin' ? (
                 <div className="mb-6 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-3 gap-1.5 shadow-inner">
                   <button
                     id="role-tab-student"
                     type="button"
-                    onClick={() => setRoleTab('student')}
+                    onClick={() => {
+                      setRoleTab('student');
+                      setAuthRoleTab('student');
+                    }}
                     className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       roleTab === 'student'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/25 border border-blue-400/30'
@@ -608,7 +616,10 @@ export const LoginModal: React.FC = () => {
                   <button
                     id="role-tab-staff"
                     type="button"
-                    onClick={() => setRoleTab('staff')}
+                    onClick={() => {
+                      setRoleTab('staff');
+                      setAuthRoleTab('staff');
+                    }}
                     className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       roleTab === 'staff'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/25 border border-blue-400/30'
@@ -622,7 +633,10 @@ export const LoginModal: React.FC = () => {
                   <button
                     id="role-tab-admin"
                     type="button"
-                    onClick={() => setRoleTab('admin')}
+                    onClick={() => {
+                      setRoleTab('admin');
+                      setAuthRoleTab('admin');
+                    }}
                     className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       roleTab === 'admin'
                         ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/25 border border-blue-400/30'
@@ -631,6 +645,42 @@ export const LoginModal: React.FC = () => {
                   >
                     <ShieldCheck className="w-4 h-4 shrink-0" />
                     <span className="truncate">Admin Panel</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-6 p-1.5 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 grid grid-cols-2 gap-1.5 shadow-inner">
+                  <button
+                    id="reg-role-tab-student"
+                    type="button"
+                    onClick={() => {
+                      setRoleTab('student');
+                      setAuthRoleTab('student');
+                    }}
+                    className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      roleTab === 'student'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/25 border border-blue-400/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <GraduationCap className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Student Account</span>
+                  </button>
+
+                  <button
+                    id="reg-role-tab-staff"
+                    type="button"
+                    onClick={() => {
+                      setRoleTab('staff');
+                      setAuthRoleTab('staff');
+                    }}
+                    className={`py-2.5 px-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      roleTab === 'staff'
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md shadow-blue-600/25 border border-blue-400/30'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <Briefcase className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Staff / Librarian</span>
                   </button>
                 </div>
               )}
@@ -794,9 +844,182 @@ export const LoginModal: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              ) : (
-                /* Student Registration Form Mode (Register page is dedicated strictly to student accounts) */
+              ) : roleTab === 'staff' ? (
+                /* Staff Registration Form Mode */
                 <form
+                  id="form-staff-register"
+                  onSubmit={handleStaffRegister}
+                  className="space-y-3"
+                >
+                  <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-700 dark:text-indigo-300 text-xs flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <span>Library Archivist & Staff Registration: Register an authorized account to manage catalog inventory, circulation, and book issues.</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      id="input-reg-staff-name"
+                      type="text"
+                      required
+                      placeholder="e.g. Dr. Robert Vance"
+                      value={regStaffName}
+                      onChange={e => setRegStaffName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-xl outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                        Staff / Employee ID *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setRegStaffId(`LIB-${Math.floor(1000 + Math.random() * 9000)}`)}
+                        className="text-[10px] font-semibold text-blue-600 dark:text-sky-400 hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" /> Auto-generate ID
+                      </button>
+                    </div>
+                    <input
+                      id="input-reg-staff-id"
+                      type="text"
+                      required
+                      placeholder="e.g. LIB-8295"
+                      value={regStaffId}
+                      onChange={e => setRegStaffId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-xl outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800 font-mono"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Department *
+                      </label>
+                      <select
+                        id="select-reg-staff-dept"
+                        value={regStaffDept}
+                        onChange={e => setRegStaffDept(e.target.value)}
+                        className="w-full px-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl outline-none focus:border-blue-600"
+                      >
+                        <option value="Central Library Admin">Central Library Admin</option>
+                        <option value="Circulation & Lending">Circulation & Lending</option>
+                        <option value="Digital Repository & Archives">Digital Repository & Archives</option>
+                        <option value="Technical Processing & Acquisition">Technical Processing & Acquisition</option>
+                        <option value="Reference & Research">Reference & Research</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Position / Designation *
+                      </label>
+                      <select
+                        id="select-reg-staff-position"
+                        value={regStaffPosition}
+                        onChange={e => setRegStaffPosition(e.target.value)}
+                        className="w-full px-3 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl outline-none focus:border-blue-600"
+                      >
+                        <option value="Assistant Librarian">Assistant Librarian</option>
+                        <option value="Senior Librarian">Senior Librarian</option>
+                        <option value="Chief Archivist">Chief Archivist</option>
+                        <option value="Circulation Specialist">Circulation Specialist</option>
+                        <option value="Digital Resource Manager">Digital Resource Manager</option>
+                        <option value="Library Officer">Library Officer</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Official Email Address *
+                    </label>
+                    <input
+                      id="input-reg-staff-email"
+                      type="email"
+                      required
+                      placeholder="e.g. robert.vance@university.edu"
+                      value={regStaffEmail}
+                      onChange={e => setRegStaffEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-xl outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Password * (Min. 6 chars)
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="input-reg-staff-password"
+                        type={showRegPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        placeholder="••••••••"
+                        value={regStaffPassword}
+                        onChange={e => setRegStaffPassword(e.target.value)}
+                        className="w-full pl-3.5 pr-10 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-xl outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Confirm Password *
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="input-reg-staff-confirm-password"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        placeholder="••••••••"
+                        value={regStaffConfirmPassword}
+                        onChange={e => setRegStaffConfirmPassword(e.target.value)}
+                        className="w-full pl-3.5 pr-10 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 rounded-xl outline-none focus:border-blue-600 focus:bg-white dark:focus:bg-slate-800"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    id="btn-submit-staff-register"
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-600/25 transition-all mt-3 cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? (
+                      <span className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 animate-spin" /> Registering Staff Account...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <UserPlus className="w-4 h-4" /> Register Staff Account
+                      </span>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                /* Student Registration Form Mode */
+                <form
+                  id="form-student-register"
                   onSubmit={handleStudentRegister}
                   className="space-y-3"
                 >
@@ -944,10 +1167,29 @@ export const LoginModal: React.FC = () => {
                         onClick={() => {
                           setAuthMode('register');
                           setRoleTab('student');
+                          setAuthRoleTab('student');
                         }}
                         className="text-blue-600 dark:text-sky-400 font-bold hover:underline ml-1 cursor-pointer"
                       >
-                        Register Account
+                        Register Student Account
+                      </button>
+                    </p>
+                  </div>
+                ) : roleTab === 'staff' ? (
+                  <div className="mt-6 pt-4 border-t border-slate-200/80 dark:border-slate-800 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Need a staff account?{' '}
+                      <button
+                        type="button"
+                        id="btn-switch-to-staff-register"
+                        onClick={() => {
+                          setAuthMode('register');
+                          setRoleTab('staff');
+                          setAuthRoleTab('staff');
+                        }}
+                        className="text-blue-600 dark:text-sky-400 font-bold hover:underline ml-1 cursor-pointer"
+                      >
+                        Register Staff Account
                       </button>
                     </p>
                   </div>
