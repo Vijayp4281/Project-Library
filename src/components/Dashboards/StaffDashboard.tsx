@@ -77,6 +77,7 @@ export const StaffDashboard: React.FC = () => {
     deleteStaffMember,
     updateSystemSettings,
     setIsAuthModalOpen,
+    openAuthModal,
     currentRole,
     addToast,
     updateStaffProfile
@@ -167,14 +168,24 @@ export const StaffDashboard: React.FC = () => {
         </div>
         <h2 className="text-xl font-bold">Librarian / Staff Portal Access</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Access is restricted exclusively to authorized Library Staff accounts. Please sign in via the Staff Portal to manage circulation and library operations.
+          Access is restricted to authorized Library Staff and Archivist accounts. Sign in or register a new staff account to manage circulation and library operations.
         </p>
-        <button
-          onClick={() => setIsAuthModalOpen(true)}
-          className="py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 border border-blue-500/30 transition-all inline-flex items-center gap-2 cursor-pointer"
-        >
-          <ShieldCheck className="w-4 h-4" /> Log In as Staff Member
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button
+            id="btn-staff-portal-login"
+            onClick={() => openAuthModal('signin', 'staff')}
+            className="py-2.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-600/25 border border-blue-500/30 transition-all inline-flex items-center gap-2 cursor-pointer"
+          >
+            <ShieldCheck className="w-4 h-4" /> Sign In as Staff
+          </button>
+          <button
+            id="btn-staff-portal-register"
+            onClick={() => openAuthModal('register', 'staff')}
+            className="py-2.5 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold text-sm border border-slate-200 dark:border-slate-700 transition-all inline-flex items-center gap-2 cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4 text-indigo-500" /> Register Staff Account
+          </button>
+        </div>
       </div>
     );
   }
@@ -1269,30 +1280,6 @@ export const StaffDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Quick Select Student Chips */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-400 font-medium">Quick Pick Student Roll Number:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(studentsList || []).map((s, idx) => (
-                        <button
-                          key={`quick-student-chip-${s.id || s.rollNumber || 'stu'}-${idx}`}
-                          type="button"
-                          onClick={() => {
-                            setIssueStudentRoll(s.rollNumber || '');
-                            setIsStudentDropdownOpen(false);
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border cursor-pointer ${
-                            s.rollNumber && issueStudentRoll.toLowerCase().trim() === s.rollNumber.toLowerCase().trim()
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:text-emerald-600'
-                          }`}
-                        >
-                          {s.rollNumber} ({s.name})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Auto-filled Student Details Cards */}
                   <div className="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-700 text-xs">
                     <div>
@@ -1513,30 +1500,6 @@ export const StaffDashboard: React.FC = () => {
                           </motion.div>
                         )}
                       </AnimatePresence>
-                    </div>
-                  </div>
-
-                  {/* Quick Select Book Chips */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-400 font-medium">Quick Pick Book ID:</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(books || []).slice(0, 5).map((b, idx) => (
-                        <button
-                          key={`quick-book-chip-${b.id || b.isbn || 'bk'}-${idx}`}
-                          type="button"
-                          onClick={() => {
-                            setIssueBookId(b.id || '');
-                            setIsBookDropdownOpen(false);
-                          }}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all border cursor-pointer ${
-                            b.id && issueBookId.toLowerCase().trim() === b.id.toLowerCase().trim()
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                              : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:text-emerald-600'
-                          }`}
-                        >
-                          {b.id}
-                        </button>
-                      ))}
                     </div>
                   </div>
 
