@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isStaffOrAdmin() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff', 'archivist', 'librarian']
+      );
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && (
+        request.resource.data.role == 'student' || isStaffOrAdmin()
+      );
+      allow update: if isOwner(userId) && (
+        request.resource.data.role == resource.data.role || isStaffOrAdmin()
+      );
+      allow delete: if isOwner(userId) || isStaffOrAdmin();
+    }
+
+    match /students/{studentId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(studentId) || isSignedIn();
+      allow delete: if isOwner(studentId) || isStaffOrAdmin();
+    }
+
+    match /books/{bookId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /borrowRecords/{recordId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
+

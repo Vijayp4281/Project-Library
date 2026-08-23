@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "students": {
+      "title": "Student Profiles",
+      "description": "Student profile details indexed by Firebase Auth UID",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "department": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "emailVerified": { "type": "boolean" }
+      },
+      "required": ["uid", "name", "rollNumber", "department", "email"]
+    },
+    "users": {
+      "title": "User Profiles",
+      "description": "User profile details indexed by Firebase Auth UID",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "staffId": { "type": "string" },
+        "department": { "type": "string" },
+        "position": { "type": "string" },
+        "year": { "type": "string" },
+        "batch": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "maxBorrowLimit": { "type": "number" },
+        "joinedDate": { "type": "string" },
+        "emailVerified": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "books": {
+      "title": "Library Books",
+      "description": "Books in the library catalog",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "isbn": { "type": "string" },
+        "department": { "type": "string" },
+        "category": { "type": "string" },
+        "edition": { "type": "string" },
+        "publishedYear": { "type": "number" },
+        "copiesAvailable": { "type": "number" },
+        "totalCopies": { "type": "number" },
+        "shelfLocation": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array" }
+      },
+      "required": ["id", "title", "author"]
+    },
+    "borrowRecords": {
+      "title": "Borrow Records",
+      "description": "Student borrowing transactions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentRollNumber": { "type": "string" },
+        "bookId": { "type": "string" },
+        "bookTitle": { "type": "string" },
+        "bookAuthor": { "type": "string" },
+        "bookCover": { "type": "string" },
+        "borrowDate": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "submittedDate": { "type": "string" },
+        "status": { "type": "string" },
+        "remarks": { "type": "string" }
+      },
+      "required": ["id", "studentId", "bookId"]
+    }
+  },
+  "firestore": {
+    "/students/{uid}": {
+      "schema": "students",
+      "description": "Student documents"
+    },
+    "/users/{uid}": {
+      "schema": "users",
+      "description": "User profile documents"
+    },
+    "/books/{id}": {
+      "schema": "books",
+      "description": "Library books"
+    },
+    "/borrowRecords/{id}": {
+      "schema": "borrowRecords",
+      "description": "Borrowing transactions"
+    }
+  }
+}
