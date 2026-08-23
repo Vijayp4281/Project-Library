@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import {
   getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
   setDoc,
@@ -24,15 +25,30 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Book, BorrowRecord, StudentProfile, StaffProfile, Role } from '../types';
-import { DEMO_STUDENTS, DEMO_STAFF } from '../data/mockData';
+import { DEMO_STUDENTS, DEMO_STAFF, INITIAL_BOOKS } from '../data/mockData';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 
-export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+export const db = (() => {
+  const dbId = (firebaseConfig as any).firestoreDatabaseId && (firebaseConfig as any).firestoreDatabaseId !== '(default)'
+    ? (firebaseConfig as any).firestoreDatabaseId
+    : undefined;
+
+  try {
+    return initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+      ignoreUndefinedProperties: true
+    }, dbId);
+  } catch (e) {
+    try {
+      return dbId ? getFirestore(app, dbId) : getFirestore(app);
+    } catch {
+      return getFirestore(app);
+    }
+  }
+})();
 
 export const formatAuthError = (err: any): string => {
   const code = err?.code || '';
@@ -368,6 +384,8 @@ export const registerUserWithFirebase = async (
         await setDoc(doc(db, 'users', uid), cleanObject(userData));
         if (profile.role === 'student') {
           await setDoc(doc(db, 'students', uid), cleanObject(userData));
+        } else if (profile.role === 'staff') {
+          await setDoc(doc(db, 'librarians', uid), cleanObject(userData));
         }
       } catch (dbErr) {
         console.error('Error writing user profile to Firestore:', dbErr);
@@ -567,11 +585,19 @@ export const signInUserWithFirebase = async (email: string, pass: string, requir
         return { user: { uid: matchedStudent.id, email: matchedStudent.email, emailVerified: true }, userData: uDoc };
       }
 
-      // Check staff match
-      const matchedStaff = DEMO_STAFF.find(
-        s => s.email.toLowerCase() === cleanEmail ||
-             s.staffId.toLowerCase() === cleanEmail ||
-             s.id.toLowerCase() === cleanEmail
+      // Check staff match (both from DEMO_STAFF and dynamically added staff in lms_staff_list)
+      let customStaffList: StaffProfile[] = [];
+      try {
+        const savedStaff = localStorage.getItem('lms_staff_list');
+        if (savedStaff) customStaffList = JSON.parse(savedStaff);
+      } catch (e) {}
+
+      const allKnownStaff = [...customStaffList, ...DEMO_STAFF];
+      const matchedStaff = allKnownStaff.find(
+        s => s.email?.toLowerCase() === cleanEmail ||
+             s.staffId?.toLowerCase() === cleanEmail ||
+             s.id?.toLowerCase() === cleanEmail ||
+             s.name?.toLowerCase() === cleanEmail
       );
       if (matchedStaff && (requiredRole === undefined || (requiredRole as string) === 'staff' || (requiredRole as string) === 'admin')) {
         const uDoc: UserDoc = {
@@ -582,8 +608,8 @@ export const signInUserWithFirebase = async (email: string, pass: string, requir
           staffId: matchedStaff.staffId,
           department: matchedStaff.department,
           position: matchedStaff.position,
-          avatar: matchedStaff.avatar,
-          joinedDate: matchedStaff.joinedDate,
+          avatar: matchedStaff.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+          joinedDate: matchedStaff.joinedDate || new Date().toISOString().split('T')[0],
           emailVerified: true
         };
         return { user: { uid: matchedStaff.id, email: matchedStaff.email, emailVerified: true }, userData: uDoc };
@@ -669,16 +695,27 @@ export const seedUsersCollectionInFirestore = async () => {
 // Firestore books sync helpers
 export const subscribeBooksFromFirestore = (onUpdate: (books: Book[]) => void) => {
   const booksCol = collection(db, 'books');
-  return onSnapshot(booksCol, snapshot => {
+  return onSnapshot(booksCol, async snapshot => {
     const list: Book[] = [];
     snapshot.forEach(docSnap => {
       list.push(docSnap.data() as Book);
     });
     if (list.length > 0) {
       onUpdate(list);
+    } else {
+      // Automatically seed books to Firestore if collection is empty
+      onUpdate(INITIAL_BOOKS);
+      try {
+        for (const book of INITIAL_BOOKS) {
+          await setDoc(doc(db, 'books', book.id), cleanObject(book));
+        }
+      } catch (e) {
+        console.warn('Could not auto-seed books to Firestore (offline or read-only):', e);
+      }
     }
   }, err => {
-    console.warn('Firestore books listener error:', err);
+    console.warn('Firestore books listener error (falling back to initial books):', err);
+    onUpdate(INITIAL_BOOKS);
   });
 };
 
@@ -808,6 +845,85 @@ export const deleteStudentFromFirestore = async (id: string) => {
     await deleteDoc(doc(db, 'users', id));
   } catch (err) {
     console.error('Error deleting student in Firestore:', err);
+  }
+};
+
+// Firestore staff / librarians sync helpers
+export const subscribeStaffFromFirestore = (onUpdate: (staff: StaffProfile[]) => void) => {
+  const colRef = collection(db, 'librarians');
+  return onSnapshot(colRef, snapshot => {
+    const list: StaffProfile[] = [];
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data() as any;
+      if (data && (data.role === 'staff' || data.role === 'librarian' || data.staffId || data.email)) {
+        list.push({
+          id: docSnap.id,
+          name: data.name || 'Librarian',
+          staffId: data.staffId || 'LIB-001',
+          email: data.email || '',
+          department: data.department || 'Central Library Admin',
+          position: data.position || 'Assistant Librarian',
+          avatar: data.avatar || data.photoURL || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+          phone: data.phone || '+1 (555) 019-2834',
+          joinedDate: data.joinedDate || new Date().toISOString().split('T')[0],
+          role: 'staff',
+          issuedBooksCount: data.issuedBooksCount || 0
+        });
+      }
+    });
+    if (list.length > 0) {
+      onUpdate(list);
+    }
+  }, err => {
+    console.warn('Firestore librarians listener error:', err);
+  });
+};
+
+export const saveStaffToFirestore = async (staff: StaffProfile) => {
+  try {
+    const staffDoc: UserDoc = {
+      uid: staff.id,
+      name: staff.name,
+      staffId: staff.staffId,
+      email: staff.email,
+      role: 'staff',
+      department: staff.department,
+      position: staff.position,
+      phone: staff.phone || '+1 (555) 019-2834',
+      avatar: staff.avatar,
+      joinedDate: staff.joinedDate,
+      emailVerified: true,
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'librarians', staff.id), cleanObject(staffDoc));
+    await setDoc(doc(db, 'users', staff.id), cleanObject(staffDoc));
+  } catch (err) {
+    console.error('Error saving staff to Firestore:', err);
+  }
+};
+
+export const updateStaffInFirestore = async (id: string, data: Partial<StaffProfile>) => {
+  try {
+    const cleaned = cleanObject(data);
+    await updateDoc(doc(db, 'librarians', id), cleaned);
+    await updateDoc(doc(db, 'users', id), cleaned);
+  } catch (err) {
+    try {
+      await setDoc(doc(db, 'librarians', id), cleanObject(data), { merge: true });
+      await setDoc(doc(db, 'users', id), cleanObject(data), { merge: true });
+    } catch (e) {
+      console.error('Error updating staff in Firestore:', e);
+    }
+  }
+};
+
+export const deleteStaffFromFirestore = async (id: string) => {
+  try {
+    if (!id) return;
+    await deleteDoc(doc(db, 'librarians', id));
+    await deleteDoc(doc(db, 'users', id));
+  } catch (err) {
+    console.error('Error deleting staff from Firestore:', err);
   }
 };
 
