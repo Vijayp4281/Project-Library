@@ -17,7 +17,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onScanComplete,
   title = 'Real-Time Barcode & QR Scanner'
 }) => {
-  const { books, addToast } = useLibrary();
+  const { addToast } = useLibrary();
   const [scannedCode, setScannedCode] = useState<string>('');
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -136,10 +136,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSelectBookCode = (id: string) => {
-    handleSuccessfulScan(id);
-  };
-
   return (
     <AnimatePresence>
       <div key="scanner-modal-backdrop" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
@@ -174,7 +170,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 <AlertCircle className="w-8 h-8 text-amber-500 animate-bounce" />
                 <p className="text-xs text-slate-200 font-semibold">{cameraError}</p>
                 <p className="text-[10px] text-slate-400">
-                  You can still pick a book barcode below or type manually.
+                  You can type the Book ID / ISBN manually below.
                 </p>
               </div>
             )}
@@ -195,36 +191,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 </select>
               </div>
             )}
-          </div>
-
-          {/* Quick Barcode Emulator / Catalog Book Codes */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center justify-between">
-              <span>Quick Select / Simulated Barcode Scan:</span>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">Click any book code</span>
-            </label>
-
-            <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 text-xs">
-              {books.map((b, idx) => (
-                <button
-                  key={`scanner-quick-book-${b.id}-${idx}`}
-                  onClick={() => handleSelectBookCode(b.id)}
-                  className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    scannedCode === b.id
-                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-600 dark:text-emerald-300 font-bold'
-                      : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 hover:bg-emerald-500/5'
-                  }`}
-                >
-                  <div className="truncate pr-2">
-                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 mr-2">{b.id}</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-medium">{b.title}</span>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono shrink-0">
-                    {b.availableCopies} avail
-                  </span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Manual Input Fallback */}
