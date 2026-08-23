@@ -41,6 +41,7 @@ export interface StaffProfile {
   staffId: string;
   name: string;
   email: string;
+  password?: string;
   department: string;
   position: string;
   avatar: string;
@@ -49,6 +50,7 @@ export interface StaffProfile {
   phone?: string;
   joinedDate: string;
   role?: 'librarian' | 'staff' | 'admin';
+  issuedBooksCount?: number;
 }
 
 export interface AdminProfile {
