@@ -105,6 +105,7 @@ export const AdminDashboard: React.FC = () => {
     name: '',
     staffId: '',
     email: '',
+    password: '',
     department: 'Central Library Admin',
     position: 'Assistant Librarian'
   });
@@ -226,6 +227,7 @@ export const AdminDashboard: React.FC = () => {
       name: '',
       staffId: `LIB-${Date.now().toString().slice(-4)}`,
       email: '',
+      password: '',
       department: 'Central Library Admin',
       position: 'Assistant Librarian'
     });
@@ -238,6 +240,7 @@ export const AdminDashboard: React.FC = () => {
       name: staff.name,
       staffId: staff.staffId,
       email: staff.email,
+      password: '',
       department: staff.department || 'Central Library Admin',
       position: staff.position || 'Librarian'
     });
@@ -1202,18 +1205,20 @@ export const AdminDashboard: React.FC = () => {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            id={`admin-btn-edit-staff-${staff.id || staff.staffId}`}
                             onClick={() => handleOpenEditStaff(staff)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-indigo-100 dark:bg-slate-800 dark:hover:bg-indigo-950/60 text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-colors cursor-pointer"
-                            title="Edit Staff"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-indigo-600 dark:bg-slate-800 dark:hover:bg-indigo-600 text-slate-600 dark:text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm flex items-center justify-center"
+                            title="Edit Staff Member"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
+                            id={`admin-btn-delete-staff-${staff.id || staff.staffId}`}
                             onClick={() => handleDeleteStaff(staff.id, staff.name)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950/60 text-slate-600 dark:text-slate-300 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Remove Staff"
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-rose-600 dark:bg-slate-800 dark:hover:bg-rose-600 text-slate-600 dark:text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm flex items-center justify-center"
+                            title="Remove Staff Account"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -1817,6 +1822,24 @@ export const AdminDashboard: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {!editingStaff && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      Account Password {editingStaff ? '(Leave blank to keep current)' : '*'}
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Minimum 6 characters (e.g. Staff@123)"
+                      value={staffForm.password}
+                      onChange={e => setStaffForm({ ...staffForm, password: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs rounded-xl outline-none focus:border-indigo-500 text-slate-900 dark:text-white"
+                    />
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      This password allows the staff member to log in via Firebase Auth with their email or Staff ID.
+                    </p>
+                  </div>
+                )}
 
                 <div className="pt-3 flex justify-end gap-2">
                   <button
