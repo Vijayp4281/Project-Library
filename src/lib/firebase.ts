@@ -12,6 +12,7 @@ import {
 import {
   getFirestore,
   initializeFirestore,
+  setLogLevel,
   doc,
   getDoc,
   setDoc,
@@ -27,13 +28,29 @@ import firebaseConfig from '../../firebase-applet-config.json';
 import { Book, BorrowRecord, StudentProfile, StaffProfile, Role } from '../types';
 import { DEMO_STUDENTS, DEMO_STAFF, INITIAL_BOOKS } from '../data/mockData';
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+// Configure log level to suppress non-fatal connection warnings when offline
+try {
+  setLogLevel('silent');
+} catch {
+  // Ignore
+}
+
+const metaEnv = (import.meta as any)?.env || {};
+
+const resolvedConfig = {
+  ...firebaseConfig,
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || (firebaseConfig as any).apiKey || 'AIzaSyDummyKeyForFallbackOnly1234567890',
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || (firebaseConfig as any).projectId || 'ai-studio-librarymanagemen-637a24c4-743a-41dc-b7de-05fe19001476',
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || (firebaseConfig as any).authDomain || 'ai-studio-librarymanagemen-637a24c4-743a-41dc-b7de-05fe19001476.firebaseapp.com',
+};
+
+const app = !getApps().length ? initializeApp(resolvedConfig) : getApp();
 
 export const auth = getAuth(app);
 
 export const db = (() => {
-  const dbId = (firebaseConfig as any).firestoreDatabaseId && (firebaseConfig as any).firestoreDatabaseId !== '(default)'
-    ? (firebaseConfig as any).firestoreDatabaseId
+  const dbId = (resolvedConfig as any).firestoreDatabaseId && (resolvedConfig as any).firestoreDatabaseId !== '(default)'
+    ? (resolvedConfig as any).firestoreDatabaseId
     : undefined;
 
   try {
